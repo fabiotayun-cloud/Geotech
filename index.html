@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mohr-Coulomb (c=0) — efecto de φ</title>
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#11172d; --ink:#e8ecf8; --muted:#a7b0c8;
+      --axis:#7983a7; --grid:#2a3356; --accent:#7aa2ff; --line:#ffd166; --fail:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; color:var(--ink);
+      background: radial-gradient(1200px 600px at 10% -20%, #1a234b 0%, var(--bg) 45%, #070b18 100%);
+      display:grid; place-items:center; min-height:100vh; padding:20px}
+    .card{width:min(1100px,96vw); background:linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03)); border:1px solid rgba(255,255,255,0.08);
+      border-radius:16px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.35)}
+    header{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.08)}
+    header h1{font-size:18px; margin:0}
+    header small{color:var(--muted)}
+    .content{display:grid; grid-template-columns: minmax(520px,1fr) 360px}
+    svg{width:100%; height:560px; display:block; background:linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.10)); border-right:1px solid rgba(255,255,255,.06)}
+    aside{padding:16px; display:grid; gap:14px}
+    .row{display:flex; align-items:center; justify-content:space-between; gap:10px}
+    .pill{border:1px solid rgba(255,255,255,.15); color:var(--muted); border-radius:999px; padding:6px 10px; font-size:12px}
+    .chips{display:flex; gap:8px; flex-wrap:wrap}
+    .chip{cursor:pointer; padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.2); color:var(--ink)}
+    .chip.active{background:rgba(122,162,255,.18); border-color:rgba(122,162,255,.5)}
+    input[type=range]{width:100%}
+    button{cursor:pointer; padding:10px 12px; border-radius:10px; border:1px solid rgba(122,162,255,.45); background:rgba(122,162,255,.15); color:var(--ink)}
+    button.secondary{background:transparent; border-color:rgba(255,255,255,.25)}
+    .legend{display:flex; gap:10px; flex-wrap:wrap}
+    .legend .sw{width:12px; height:12px; border-radius:3px; display:inline-block; margin-right:6px}
+    footer{border-top:1px solid rgba(255,255,255,.08); padding:10px 14px; color:var(--muted); font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="card" role="application" aria-label="Mohr-Coulomb c=0 — efecto del ángulo de fricción">
+    <header>
+      <h1>Mohr–Coulomb (c = 0) • Suelos no cohesivos</h1>
+      <small>τ = σ' · tan(φ)</small>
+    </header>
+    <div class="content">
+      <!-- Lienzo principal -->
+      <svg id="plot" viewBox="0 0 900 560" role="img" aria-labelledby="t d">
+        <title id="t">Recta de Mohr–Coulomb para arenas (c=0)</title>
+        <desc id="d">Se ilustra cómo el ángulo de fricción φ cambia la pendiente τ = σ'·tan(φ). Ejes en kPa.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6 Z" fill="var(--axis)"/>
+          </marker>
+          <filter id="softBlur" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="12" />
+          </filter>
+        </defs>
+
+        <!-- Fondo y grilla -->
+        <rect x="0" y="0" width="900" height="560" fill="none" />
+        <g id="grid"></g>
+
+        <!-- Ejes -->
+        <g id="axes" stroke="var(--axis)" stroke-width="2">
+          <line id="xAxis" x1="80" y1="470" x2="840" y2="470" marker-end="url(#arrow)"/>
+          <line id="yAxis" x1="80" y1="470" x2="80" y2="60" marker-end="url(#arrow)"/>
+        </g>
+        <text x="830" y="495" text-anchor="end" fill="var(--axis)">σ' (kPa)</text>
+        <text transform="translate(30,265) rotate(-90)" text-anchor="middle" fill="var(--axis)">τ (kPa)</text>
+
+        <!-- Etiquetas de ticks -->
+        <g id="ticks"></g>
+
+        <!-- Región de falla (arriba de la recta) -->
+        <polygon id="failRegion" fill="rgba(255,107,107,0.12)" stroke="rgba(255,107,107,0.35)" stroke-width="1"/>
+
+        <!-- Recta de Mohr–Coulomb -->
+        <g id="mcLine">
+          <line id="line" x1="80" y1="470" x2="860" y2="100" stroke="var(--line)" stroke-width="4" />
+          <text id="eq" x="620" y="115" fill="var(--ink)" font-size="14"></text>
+        </g>
+
+        <!-- Líneas de referencia para φ comunes -->
+        <g id="refs"></g>
+
+        <!-- Puntos de ejemplo -->
+        <g id="points"></g>
+
+        <!-- Nota lateral -->
+        <g id="note">
+          <rect x="565" y="380" width="290" height="150" rx="12" fill="rgba(122,162,255,0.08)" stroke="rgba(122,162,255,0.25)" />
+          <text x="580" y="405" fill="var(--muted)">Suelos no cohesivos (c = 0):</text>
+          <text x="580" y="428" fill="var(--ink)">• Intercepción en τ = 0</text>
+          <text x="580" y="450" fill="var(--ink)">• Pendiente = tan(φ)</text>
+          <text x="580" y="472" fill="var(--ink)">• Mayor φ ⇒ mayor resistencia</text>
+        </g>
+
+        <!-- Marca de agua / firma -->
+        <g opacity="0.5">
+          <text x="84" y="540" fill="var(--muted)" font-size="12">© Mohr–Coulomb (docencia) • Fabio Tavera • c=0</text>
+          <text x="860" y="540" fill="var(--muted)" font-size="12" text-anchor="end">Master en Geotecnia — Fabio Andres Tavera Yunda</text>
+        </g>
+      </svg>
+
+      <!-- Panel lateral -->
+      <aside>
+        <div class="row">
+          <label for="phi">Ángulo de fricción φ (°)</label>
+          <span class="pill"><span id="phiVal">35</span>°</span>
+        </div>
+        <input id="phi" type="range" min="20" max="48" step="0.5" value="35" />
+
+        <div class="chips" aria-label="valores típicos de φ en arenas">
+          <div class="chip" data-phi="30">30° (arenas sueltas)</div>
+          <div class="chip active" data-phi="35">35° (medianas)</div>
+          <div class="chip" data-phi="40">40° (densas)</div>
+          <div class="chip" data-phi="45">45° (idealización)</div>
+        </div>
+
+        <div class="legend">
+          <span><span class="sw" style="background:var(--line)"></span> Recta τ = σ'·tan(φ)</span>
+          <span><span class="sw" style="background:rgba(255,107,107,0.35)"></span> Región de falla</span>
+          <span><span class="sw" style="background:var(--accent)"></span> Rectas de referencia</span>
+        </div>
+
+        <div class="row">
+          <button id="download">Exportar PNG 1200×630</button>
+          <button id="reset" class="secondary">Reiniciar</button>
+        </div>
+
+        <small style="color:var(--muted)">Consejo: mueve φ y luego exporta la imagen para publicarla en LinkedIn.
+          El PNG se guarda con fondo oscuro y etiquetas en español.</small>
+      </aside>
+    </div>
+    <footer>
+      Mohr–Coulomb (c=0) para geotecnia. Este gráfico es cualitativo; ajusta el rango de σ' según tu proyecto si lo necesitas.
+    </footer>
+  </div>
+
+  <script>
+    const svg = document.getElementById('plot');
+    const gridG = document.getElementById('grid');
+    const ticksG = document.getElementById('ticks');
+    const refsG = document.getElementById('refs');
+    const pointsG = document.getElementById('points');
+    const lineEl = document.getElementById('line');
+    const eqEl = document.getElementById('eq');
+    const failPoly = document.getElementById('failRegion');
+
+    const phiRange = document.getElementById('phi');
+    const phiVal = document.getElementById('phiVal');
+    const chips = Array.from(document.querySelectorAll('.chip'));
+    const btnDownload = document.getElementById('download');
+    const btnReset = document.getElementById('reset');
+
+    // Escalas del gráfico
+    const PAD_L = 80, PAD_B = 470, PAD_R = 840, PAD_T = 60;
+    const W = PAD_R - PAD_L, H = PAD_B - PAD_T;
+
+    // Rango de ejes (kPa)
+    const SIG_MAX = 600; // σ' máx
+    const TAU_MAX = 300; // τ máx
+
+    function xOf(sigma){ return PAD_L + (sigma / SIG_MAX) * W; }
+    function yOf(tau){ return PAD_B - (tau / TAU_MAX) * H; }
+
+    // Dibujar grilla y ticks
+    function drawGrid(){
+      gridG.innerHTML = ''; ticksG.innerHTML = '';
+      const sigStep = 50; const tauStep = 25;
+      for(let s=0; s<=SIG_MAX; s+=sigStep){
+        const x = xOf(s);
+        const l = line( x, PAD_T, x, PAD_B, 'var(--grid)', 1 ); l.setAttribute('opacity','.55'); gridG.appendChild(l);
+        const tick = line( x, PAD_B, x, PAD_B+6, 'var(--axis)', 2 ); ticksG.appendChild(tick);
+        // Evitar superposición con el borde derecho y con la unidad
+        if (s < SIG_MAX){
+          const isZero = (s === 0);
+          const txt = text( isZero ? x+10 : x, PAD_B+22, s.toString(), isZero ? 'start' : 'middle', 'var(--axis)' );
+          ticksG.appendChild(txt);
+        }
+      }
+      for(let t=0; t<=TAU_MAX; t+=tauStep){
+        const y = yOf(t);
+        const l = line( PAD_L, y, PAD_R, y, 'var(--grid)', 1 ); l.setAttribute('opacity','.55'); gridG.appendChild(l);
+        const tick = line( PAD_L-6, y, PAD_L, y, 'var(--axis)', 2 ); ticksG.appendChild(tick);
+        const txt = text( PAD_L-12, y+4, t.toString(), 'end', 'var(--axis)' ); ticksG.appendChild(txt);
+      }
+    }
+
+    function line(x1,y1,x2,y2,stroke,w){
+      const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+      l.setAttribute('x1',x1); l.setAttribute('y1',y1);
+      l.setAttribute('x2',x2); l.setAttribute('y2',y2);
+      l.setAttribute('stroke',stroke); l.setAttribute('stroke-width',w);
+      return l;
+    }
+    function text(x,y,str,anchor,fill){
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x',x); t.setAttribute('y',y); if(anchor) t.setAttribute('text-anchor',anchor); if(fill) t.setAttribute('fill',fill);
+      t.textContent = str; return t;
+    }
+
+    function drawRefs(){
+      refsG.innerHTML = '';
+      const phis = [30,35,40,45];
+      phis.forEach((p)=>{
+        const m = Math.tan(p*Math.PI/180);
+        const y0 = yOf(0), x0 = xOf(0);
+        // punto donde intersecta τ=TAU_MAX o σ=SIG_MAX
+        const tauAtSigMax = m*SIG_MAX;
+        const x2 = tauAtSigMax <= TAU_MAX ? xOf(SIG_MAX) : xOf(TAU_MAX/m);
+        const y2 = tauAtSigMax <= TAU_MAX ? yOf(tauAtSigMax) : yOf(TAU_MAX);
+        const L = line( x0, y0, x2, y2, 'var(--accent)', 2 );
+        L.setAttribute('stroke-dasharray','6 6'); L.setAttribute('opacity','0.35');
+        refsG.appendChild(L);
+        const lbl = text(x2-6, y2-6, `φ=${p}°`, 'end', 'var(--muted)'); refsG.appendChild(lbl);
+      });
+    }
+
+    function drawLine(phi){
+      const m = Math.tan(phi*Math.PI/180);
+      const x0 = xOf(0), y0 = yOf(0);
+      const tauAtSigMax = m*SIG_MAX;
+      const x2 = tauAtSigMax <= TAU_MAX ? xOf(SIG_MAX) : xOf(TAU_MAX/m);
+      const y2 = tauAtSigMax <= TAU_MAX ? yOf(tauAtSigMax) : yOf(TAU_MAX);
+      lineEl.setAttribute('x1', x0); lineEl.setAttribute('y1', y0);
+      lineEl.setAttribute('x2', x2); lineEl.setAttribute('y2', y2);
+      eqEl.textContent = `τ = σ' · tan(${phi.toFixed(1)}°) = ${Math.tan(phi*Math.PI/180).toFixed(2)} · σ'`;
+
+      // Región de falla (arriba y a la izquierda de la recta)
+      const pts = [
+        `${x0},${PAD_T}`,
+        `${x0},${y0}`,
+        `${x2},${y2}`,
+        `${x2},${PAD_T}`
+      ];
+      failPoly.setAttribute('points', pts.join(' '));
+    }
+
+    function drawPoints(phi){
+      pointsG.innerHTML = '';
+      const m = Math.tan(phi*Math.PI/180);
+      const sigmas = [100, 250, 450];
+      sigmas.forEach((s)=>{
+        const tau = m*s;
+        const cx = xOf(s); const cy = yOf(tau);
+        const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+        const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        c.setAttribute('cx',cx); c.setAttribute('cy',cy); c.setAttribute('r',6);
+        c.setAttribute('fill','var(--line)'); c.setAttribute('filter','url(#softBlur)');
+        const c2 = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        c2.setAttribute('cx',cx); c2.setAttribute('cy',cy); c2.setAttribute('r',4); c2.setAttribute('fill','var(--ink)');
+        const tx = text(cx+8, cy-8, `σ'=${s} kPa, τ=${Math.round(tau)} kPa`, 'start', 'var(--ink)');
+        tx.setAttribute('font-size','12');
+        g.appendChild(c); g.appendChild(c2); g.appendChild(tx); pointsG.appendChild(g);
+      });
+    }
+
+    function setPhi(phi){
+      phi = Math.max(20, Math.min(48, phi));
+      phiRange.value = phi; phiVal.textContent = (+phi).toFixed(1);
+      chips.forEach(ch=> ch.classList.toggle('active', +ch.dataset.phi === Math.round(phi)) );
+      drawLine(phi); drawPoints(phi);
+    }
+
+    // Exportar a PNG (1200×630)
+    function downloadPNG(){
+      const svgEl = document.getElementById('plot');
+      const serializer = new XMLSerializer();
+      const src = serializer.serializeToString(svgEl);
+      const svg64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+
+      const img = new Image();
+      img.onload = () => {
+        const W = 1200, H = 630;
+        const canvas = document.createElement('canvas');
+        canvas.width = W; canvas.height = H; const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#0b1020'; ctx.fillRect(0,0,W,H);
+        const scale = Math.min(W/900, H/560) * 0.95;
+        const dw = 900*scale, dh = 560*scale; const dx = (W-dw)/2, dy = (H-dh)/2;
+        ctx.drawImage(img, dx, dy, dw, dh);
+        const a = document.createElement('a'); a.download = `mohr-coulomb_phi${phiRange.value.replace('.', '-')}.png`; a.href = canvas.toDataURL('image/png'); a.click();
+      };
+      img.src = svg64;
+    }
+
+    // Eventos
+    phiRange.addEventListener('input', e=> setPhi(parseFloat(e.target.value)) );
+    chips.forEach(ch => ch.addEventListener('click', ()=> setPhi(parseFloat(ch.dataset.phi)) ));
+    btnDownload.addEventListener('click', downloadPNG);
+    btnReset.addEventListener('click', ()=> setPhi(35));
+
+    // Init
+    drawGrid(); drawRefs(); setPhi(35);
+  </script>
+</body>
+</html>
