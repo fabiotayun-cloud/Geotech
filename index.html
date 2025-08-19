@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mohr-Coulomb (c=0) — efecto de φ</title>
+  <title>Círculos de Mohr + Envolvente (c y φ por ajuste)</title>
   <style>
     :root{
       --bg:#0b1020; --panel:#11172d; --ink:#e8ecf8; --muted:#a7b0c8;
@@ -23,28 +23,32 @@
     aside{padding:16px; display:grid; gap:14px}
     .row{display:flex; align-items:center; justify-content:space-between; gap:10px}
     .pill{border:1px solid rgba(255,255,255,.15); color:var(--muted); border-radius:999px; padding:6px 10px; font-size:12px}
-    .chips{display:flex; gap:8px; flex-wrap:wrap}
-    .chip{cursor:pointer; padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.2); color:var(--ink)}
-    .chip.active{background:rgba(122,162,255,.18); border-color:rgba(122,162,255,.5)}
     input[type=range]{width:100%}
     button{cursor:pointer; padding:10px 12px; border-radius:10px; border:1px solid rgba(122,162,255,.45); background:rgba(122,162,255,.15); color:var(--ink)}
     button.secondary{background:transparent; border-color:rgba(255,255,255,.25)}
     .legend{display:flex; gap:10px; flex-wrap:wrap}
     .legend .sw{width:12px; height:12px; border-radius:3px; display:inline-block; margin-right:6px}
-    footer{border-top:1px solid rgba(255,255,255,.08); padding:10px 14px; color:var(--muted); font-size:12px}
+    textarea{width:100%; min-height:120px; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.04); color:var(--ink); padding:10px; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+    input[type=number]{width:100%; padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.04); color:var(--ink)}
+.field{display:grid; grid-template-columns: 28px 1fr; align-items:center; gap:8px}
+.field span{color:var(--muted); font-size:12px}
+table{width:100%; border-collapse:collapse; margin-top:8px}
+th,td{padding:8px; border-bottom:1px solid rgba(255,255,255,.12); font-size:14px; text-align:left}
+th{color:var(--muted); font-weight:600}
+footer{border-top:1px solid rgba(255,255,255,.08); padding:10px 14px; color:var(--muted); font-size:12px}
   </style>
 </head>
 <body>
-  <div class="card" role="application" aria-label="Mohr-Coulomb c=0 — efecto del ángulo de fricción">
+  <div class="card" role="application" aria-label="Círculos de Mohr y ajuste c–φ">
     <header>
-      <h1>Mohr–Coulomb (c = 0) • Suelos no cohesivos</h1>
-      <small>τ = σ' · tan(φ)</small>
+      <h1>Mohr–Coulomb • Círculos + Envolvente (ajuste de c y φ)</h1>
+      <small>τ = c + σ'·tan(φ) • Ajuste con (σ=C, τ=R) de cada círculo</small>
     </header>
     <div class="content">
       <!-- Lienzo principal -->
       <svg id="plot" viewBox="0 0 900 560" role="img" aria-labelledby="t d">
-        <title id="t">Recta de Mohr–Coulomb para arenas (c=0)</title>
-        <desc id="d">Se ilustra cómo el ángulo de fricción φ cambia la pendiente τ = σ'·tan(φ). Ejes en kPa.</desc>
+        <title id="t">Círculos de Mohr y envolvente ajustada</title>
+        <desc id="d">Se grafican los círculos de Mohr (semicírculo superior) y la envolvente τ = c + σ'·tan(φ) obtenida por ajuste lineal usando los puntos superiores (σ=C, τ=R) de cada círculo. Ejes en kPa.</desc>
         <defs>
           <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
             <path d="M0,0 L8,3 L0,6 Z" fill="var(--axis)"/>
@@ -58,44 +62,36 @@
         <rect x="0" y="0" width="900" height="560" fill="none" />
         <g id="grid"></g>
 
-        <!-- Ejes -->
-        <g id="axes" stroke="var(--axis)" stroke-width="2">
-          <line id="xAxis" x1="80" y1="470" x2="840" y2="470" marker-end="url(#arrow)"/>
-          <line id="yAxis" x1="80" y1="470" x2="80" y2="60" marker-end="url(#arrow)"/>
-        </g>
-        <text x="830" y="495" text-anchor="end" fill="var(--axis)">σ' (kPa)</text>
-        <text transform="translate(30,265) rotate(-90)" text-anchor="middle" fill="var(--axis)">τ (kPa)</text>
+        <!-- Ejes (pasan por el origen) -->
+        <g id="axes" stroke="var(--axis)" stroke-width="2"></g>
+        <text id="xLabel" x="830" y="495" text-anchor="end" fill="var(--axis)">σ' (kPa)</text>
+        <text id="yLabel" transform="translate(30,265) rotate(-90)" text-anchor="middle" fill="var(--axis)">τ (kPa)</text>
 
         <!-- Etiquetas de ticks -->
         <g id="ticks"></g>
 
-        <!-- Región de falla (arriba de la recta) -->
-        <polygon id="failRegion" fill="rgba(255,107,107,0.12)" stroke="rgba(255,107,107,0.35)" stroke-width="1"/>
-
-        <!-- Recta de Mohr–Coulomb -->
+        <!-- Envolvente -->
         <g id="mcLine">
-          <line id="line" x1="80" y1="470" x2="860" y2="100" stroke="var(--line)" stroke-width="4" />
+          <path id="envPath" d="" stroke="var(--line)" stroke-width="4" fill="none" />
           <text id="eq" x="620" y="115" fill="var(--ink)" font-size="14"></text>
         </g>
 
-        <!-- Líneas de referencia para φ comunes -->
-        <g id="refs"></g>
-
-        <!-- Puntos de ejemplo -->
-        <g id="points"></g>
+        <!-- Círculos y puntos -->
+        <g id="circles"></g>
+        <g id="topPoints"></g>
 
         <!-- Nota lateral -->
-        <g id="note">
-          <rect x="565" y="380" width="290" height="150" rx="12" fill="rgba(122,162,255,0.08)" stroke="rgba(122,162,255,0.25)" />
-          <text x="580" y="405" fill="var(--muted)">Suelos no cohesivos (c = 0):</text>
-          <text x="580" y="428" fill="var(--ink)">• Intercepción en τ = 0</text>
-          <text x="580" y="450" fill="var(--ink)">• Pendiente = tan(φ)</text>
-          <text x="580" y="472" fill="var(--ink)">• Mayor φ ⇒ mayor resistencia</text>
+        <g id="note" style="display:none">
+          <rect x="560" y="380" width="300" height="155" rx="12" fill="rgba(122,162,255,0.08)" stroke="rgba(122,162,255,0.25)" />
+          <text x="575" y="405" fill="var(--muted)">Ajuste con puntos superiores:</text>
+          <text id="noteC" x="575" y="430" fill="var(--ink)">• c = —</text>
+          <text id="notePhi" x="575" y="452" fill="var(--ink)">• φ = —</text>
+          <text id="noteTan" x="575" y="474" fill="var(--ink)">• tanφ = —</text>
         </g>
 
         <!-- Marca de agua / firma -->
         <g opacity="0.5">
-          <text x="84" y="540" fill="var(--muted)" font-size="12">© Mohr–Coulomb (docencia) • Fabio Tavera • c=0</text>
+          <text x="84" y="540" fill="var(--muted)" font-size="12">© Mohr–Coulomb (docencia) • Fabio Tavera • ajuste c–φ</text>
           <text x="860" y="540" fill="var(--muted)" font-size="12" text-anchor="end">Master en Geotecnia — Fabio Andres Tavera Yunda</text>
         </g>
       </svg>
@@ -103,88 +99,101 @@
       <!-- Panel lateral -->
       <aside>
         <div class="row">
-          <label for="phi">Ángulo de fricción φ (°)</label>
-          <span class="pill"><span id="phiVal">35</span>°</span>
-        </div>
-        <input id="phi" type="range" min="20" max="48" step="0.5" value="35" />
-
-        <div class="chips" aria-label="valores típicos de φ en arenas">
-          <div class="chip" data-phi="30">30° (arenas sueltas)</div>
-          <div class="chip active" data-phi="35">35° (medianas)</div>
-          <div class="chip" data-phi="40">40° (densas)</div>
-          <div class="chip" data-phi="45">45° (idealización)</div>
+          <div class="pill">c (kPa): <b id="cVal">—</b></div>
+          <div class="pill">φ (°): <b id="phiVal">—</b></div>
+          <div class="pill">tanφ: <b id="tanVal">—</b></div>
         </div>
 
-        <div class="legend">
-          <span><span class="sw" style="background:var(--line)"></span> Recta τ = σ'·tan(φ)</span>
-          <span><span class="sw" style="background:rgba(255,107,107,0.35)"></span> Región de falla</span>
-          <span><span class="sw" style="background:var(--accent)"></span> Rectas de referencia</span>
+        <div>
+          <label>Agregar ensayo (kPa)</label>
+          <div class="row">
+            <div class="field"><span>σ₃</span><input id="inSig3" type="number" step="0.1" value="200" inputmode="decimal"></div>
+            <div class="field"><span>σ₁</span><input id="inSig1" type="number" step="0.1" value="600" inputmode="decimal"></div>
+            <button id="btnAdd">Añadir</button>
+          </div>
         </div>
+
+        <div id="tableWrap"></div>
+
+        <details>
+          <summary style="cursor:pointer;color:var(--muted)">Avanzado: importar desde JSON</summary>
+          <label for="dataInput">Datos (JSON) — <code>sigma1</code>, <code>sigma3</code>:</label>
+          <textarea id="dataInput" spellcheck="false"></textarea>
+          <div class="row">
+            <button id="importJson">Importar JSON</button>
+          </div>
+        </details>
+
+        <div class="legend" id="legendGeneral">
+          <span><span class="sw" style="background:var(--line)"></span> Envolvente τ = c + σ'·tan(φ)</span>
+          <span><span class="sw" style="background:#e8ecf8"></span> Puntos usados (σ=C, τ=R)</span>
+        </div>
+        <div class="legend" id="legendTests"></div>
 
         <div class="row">
+          <button id="recalc">Recalcular</button>
           <button id="download">Exportar PNG 1200×630</button>
           <button id="reset" class="secondary">Reiniciar</button>
-        </div>
-
-        <small style="color:var(--muted)">Consejo: mueve φ y luego exporta la imagen para publicarla en LinkedIn.
-          El PNG se guarda con fondo oscuro y etiquetas en español.</small>
-      </aside>
+        </aside></div>
     </div>
     <footer>
-      Mohr–Coulomb (c=0) para geotecnia. Este gráfico es cualitativo; ajusta el rango de σ' según tu proyecto si lo necesitas.
+      Envolvente obtenida por ajuste lineal con los puntos superiores de cada círculo: (σ=C, τ=R). Gráfico cualitativo; ajusta rangos si tu proyecto lo requiere.
     </footer>
   </div>
 
   <script>
+    // === Datos de ejemplo (kN/m²) ===
+    const defaultStates = [
+      { test: 1, sigma3: 200.0, sigma1: 600.0 },
+      { test: 2, sigma3: 300.0, sigma1: 900.0 },
+      { test: 3, sigma3: 400.0, sigma1: 1200.0 },
+    ];
+    let currentStates = JSON.parse(JSON.stringify(defaultStates));
+
+    // === Referencias DOM ===
     const svg = document.getElementById('plot');
     const gridG = document.getElementById('grid');
     const ticksG = document.getElementById('ticks');
-    const refsG = document.getElementById('refs');
-    const pointsG = document.getElementById('points');
-    const lineEl = document.getElementById('line');
+    const axesG = document.getElementById('axes');
+    const circlesG = document.getElementById('circles');
+    const topPointsG = document.getElementById('topPoints');
+    const envPath = document.getElementById('envPath');
     const eqEl = document.getElementById('eq');
-    const failPoly = document.getElementById('failRegion');
 
-    const phiRange = document.getElementById('phi');
+    // Paleta para los semicírculos
+    const COLORS = ['#7aa2ff','#66d9e8','#f59e0b','#ef4444','#10b981','#a78bfa','#f472b6','#f97316','#22c55e','#60a5fa'];
+
+    const cVal = document.getElementById('cVal');
     const phiVal = document.getElementById('phiVal');
-    const chips = Array.from(document.querySelectorAll('.chip'));
+    const tanVal = document.getElementById('tanVal');
+
+    const noteC = document.getElementById('noteC');
+    const notePhi = document.getElementById('notePhi');
+    const noteTan = document.getElementById('noteTan');
+
+    const dataInput = document.getElementById('dataInput');
+    const btnImport = document.getElementById('importJson');
+    const btnRecalc = document.getElementById('recalc');
+    const inSig3 = document.getElementById('inSig3');
+    const inSig1 = document.getElementById('inSig1');
+    const btnAdd = document.getElementById('btnAdd');
+    const tableWrap = document.getElementById('tableWrap');
     const btnDownload = document.getElementById('download');
     const btnReset = document.getElementById('reset');
 
-    // Escalas del gráfico
+    // === Geometría del lienzo ===
     const PAD_L = 80, PAD_B = 470, PAD_R = 840, PAD_T = 60;
     const W = PAD_R - PAD_L, H = PAD_B - PAD_T;
 
-    // Rango de ejes (kPa)
-    const SIG_MAX = 600; // σ' máx
-    const TAU_MAX = 300; // τ máx
+    // Dominio dinámico
+    let SIG_MIN = 0, SIG_MAX = 600; // se recalculan
+    const TAU_MIN = 0; // solo parte superior
+    let TAU_MAX = 300; // se recalcula
 
-    function xOf(sigma){ return PAD_L + (sigma / SIG_MAX) * W; }
-    function yOf(tau){ return PAD_B - (tau / TAU_MAX) * H; }
+    function xOf(sigma){ return PAD_L + ((sigma - SIG_MIN) / (SIG_MAX - SIG_MIN)) * W; }
+    function yOf(tau){ return PAD_B - ((tau - TAU_MIN) / (TAU_MAX - TAU_MIN)) * H; }
 
-    // Dibujar grilla y ticks
-    function drawGrid(){
-      gridG.innerHTML = ''; ticksG.innerHTML = '';
-      const sigStep = 50; const tauStep = 25;
-      for(let s=0; s<=SIG_MAX; s+=sigStep){
-        const x = xOf(s);
-        const l = line( x, PAD_T, x, PAD_B, 'var(--grid)', 1 ); l.setAttribute('opacity','.55'); gridG.appendChild(l);
-        const tick = line( x, PAD_B, x, PAD_B+6, 'var(--axis)', 2 ); ticksG.appendChild(tick);
-        // Evitar superposición con el borde derecho y con la unidad
-        if (s < SIG_MAX){
-          const isZero = (s === 0);
-          const txt = text( isZero ? x+10 : x, PAD_B+22, s.toString(), isZero ? 'start' : 'middle', 'var(--axis)' );
-          ticksG.appendChild(txt);
-        }
-      }
-      for(let t=0; t<=TAU_MAX; t+=tauStep){
-        const y = yOf(t);
-        const l = line( PAD_L, y, PAD_R, y, 'var(--grid)', 1 ); l.setAttribute('opacity','.55'); gridG.appendChild(l);
-        const tick = line( PAD_L-6, y, PAD_L, y, 'var(--axis)', 2 ); ticksG.appendChild(tick);
-        const txt = text( PAD_L-12, y+4, t.toString(), 'end', 'var(--axis)' ); ticksG.appendChild(txt);
-      }
-    }
-
+    // Utilidades SVG
     function line(x1,y1,x2,y2,stroke,w){
       const l = document.createElementNS('http://www.w3.org/2000/svg','line');
       l.setAttribute('x1',x1); l.setAttribute('y1',y1);
@@ -194,102 +203,302 @@
     }
     function text(x,y,str,anchor,fill){
       const t = document.createElementNS('http://www.w3.org/2000/svg','text');
-      t.setAttribute('x',x); t.setAttribute('y',y); if(anchor) t.setAttribute('text-anchor',anchor); if(fill) t.setAttribute('fill',fill);
+      t.setAttribute('x',x); t.setAttribute('y',y);
+      if(anchor) t.setAttribute('text-anchor',anchor);
+      if(fill) t.setAttribute('fill',fill);
       t.textContent = str; return t;
     }
-
-    function drawRefs(){
-      refsG.innerHTML = '';
-      const phis = [30,35,40,45];
-      phis.forEach((p)=>{
-        const m = Math.tan(p*Math.PI/180);
-        const y0 = yOf(0), x0 = xOf(0);
-        // punto donde intersecta τ=TAU_MAX o σ=SIG_MAX
-        const tauAtSigMax = m*SIG_MAX;
-        const x2 = tauAtSigMax <= TAU_MAX ? xOf(SIG_MAX) : xOf(TAU_MAX/m);
-        const y2 = tauAtSigMax <= TAU_MAX ? yOf(tauAtSigMax) : yOf(TAU_MAX);
-        const L = line( x0, y0, x2, y2, 'var(--accent)', 2 );
-        L.setAttribute('stroke-dasharray','6 6'); L.setAttribute('opacity','0.35');
-        refsG.appendChild(L);
-        const lbl = text(x2-6, y2-6, `φ=${p}°`, 'end', 'var(--muted)'); refsG.appendChild(lbl);
-      });
+    function path(d, stroke, width){
+      const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('d', d); p.setAttribute('stroke', stroke);
+      p.setAttribute('stroke-width', width); p.setAttribute('fill', 'none');
+      return p;
     }
 
-    function drawLine(phi){
-      const m = Math.tan(phi*Math.PI/180);
+    // Ajuste lineal: devuelve {m, b}
+    function linearRegression(xs, ys){
+      const n = xs.length; let sx=0, sy=0, sxx=0, sxy=0;
+      for(let i=0;i<n;i++){ const x=xs[i], y=ys[i]; sx+=x; sy+=y; sxx+=x*x; sxy+=x*y; }
+      const denom = n*sxx - sx*sx;
+      const m = denom !== 0 ? (n*sxy - sx*sy)/denom : 0;
+      const b = (sy - m*sx)/n;
+      return {m, b};
+    }
+
+    // Paso "bonito" para grilla
+    function niceStep(range, targetTicks=8){
+      const rough = range / targetTicks;
+      const pow10 = Math.pow(10, Math.floor(Math.log10(Math.max(rough, 1e-9))));
+      const frac = rough / pow10;
+      let niceFrac = 1;
+      if (frac < 1.5) niceFrac = 1; else if (frac < 3) niceFrac = 2; else if (frac < 7) niceFrac = 5; else niceFrac = 10;
+      return niceFrac * pow10;
+    }
+
+    function drawGridAndAxes(){
+      gridG.innerHTML = ''; ticksG.innerHTML = ''; axesG.innerHTML = '';
+      // Ejes pasando por el origen
       const x0 = xOf(0), y0 = yOf(0);
-      const tauAtSigMax = m*SIG_MAX;
-      const x2 = tauAtSigMax <= TAU_MAX ? xOf(SIG_MAX) : xOf(TAU_MAX/m);
-      const y2 = tauAtSigMax <= TAU_MAX ? yOf(tauAtSigMax) : yOf(TAU_MAX);
-      lineEl.setAttribute('x1', x0); lineEl.setAttribute('y1', y0);
-      lineEl.setAttribute('x2', x2); lineEl.setAttribute('y2', y2);
-      eqEl.textContent = `τ = σ' · tan(${phi.toFixed(1)}°) = ${Math.tan(phi*Math.PI/180).toFixed(2)} · σ'`;
+      
+      // Flechas
+      const xArrow = line(PAD_L, y0, PAD_R, y0, 'var(--axis)', 2); xArrow.setAttribute('marker-end','url(#arrow)');
+      const yArrow = line(x0, PAD_B, x0, PAD_T, 'var(--axis)', 2); yArrow.setAttribute('marker-end','url(#arrow)');
+      axesG.appendChild(xArrow); axesG.appendChild(yArrow);
 
-      // Región de falla (arriba y a la izquierda de la recta)
-      const pts = [
-        `${x0},${PAD_T}`,
-        `${x0},${y0}`,
-        `${x2},${y2}`,
-        `${x2},${PAD_T}`
-      ];
-      failPoly.setAttribute('points', pts.join(' '));
+      // Grid y ticks bonitos
+      const sigRange = SIG_MAX - SIG_MIN; const tauRange = TAU_MAX - TAU_MIN;
+      const sigStep = niceStep(sigRange);
+      const tauStep = niceStep(tauRange);
+
+      const sigStart = Math.ceil(SIG_MIN / sigStep) * sigStep;
+      for(let s=sigStart; s<=SIG_MAX+1e-9; s+=sigStep){
+        const x = xOf(s);
+        const l = line(x, PAD_T, x, PAD_B, 'var(--grid)', 1); l.setAttribute('opacity', '.55'); gridG.appendChild(l);
+        const tick = line(x, PAD_B, x, PAD_B+6, 'var(--axis)', 2); ticksG.appendChild(tick);
+        const anchor = Math.abs(s - SIG_MIN) < 1e-6 ? 'start' : 'middle';
+        const txt = text(x, PAD_B+22, formatNum(s), anchor, 'var(--axis)'); ticksG.appendChild(txt);
+      }
+      const tauStart = Math.ceil(TAU_MIN / tauStep) * tauStep; // TAU_MIN = 0
+      for(let t=tauStart; t<=TAU_MAX+1e-9; t+=tauStep){
+        const y = yOf(t);
+        const l = line(PAD_L, y, PAD_R, y, 'var(--grid)', 1); l.setAttribute('opacity', '.55'); gridG.appendChild(l);
+        const tick = line(PAD_L-6, y, PAD_L, y, 'var(--axis)', 2); ticksG.appendChild(tick);
+        const txt = text(PAD_L-12, y+4, formatNum(t), 'end', 'var(--axis)'); ticksG.appendChild(txt);
+      }
     }
 
-    function drawPoints(phi){
-      pointsG.innerHTML = '';
-      const m = Math.tan(phi*Math.PI/180);
-      const sigmas = [100, 250, 450];
-      sigmas.forEach((s)=>{
-        const tau = m*s;
-        const cx = xOf(s); const cy = yOf(tau);
-        const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-        const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
-        c.setAttribute('cx',cx); c.setAttribute('cy',cy); c.setAttribute('r',6);
-        c.setAttribute('fill','var(--line)'); c.setAttribute('filter','url(#softBlur)');
-        const c2 = document.createElementNS('http://www.w3.org/2000/svg','circle');
-        c2.setAttribute('cx',cx); c2.setAttribute('cy',cy); c2.setAttribute('r',4); c2.setAttribute('fill','var(--ink)');
-        const tx = text(cx+8, cy-8, `σ'=${s} kPa, τ=${Math.round(tau)} kPa`, 'start', 'var(--ink)');
-        tx.setAttribute('font-size','12');
-        g.appendChild(c); g.appendChild(c2); g.appendChild(tx); pointsG.appendChild(g);
+    function formatNum(v){
+      // Evita demasiados decimales en etiquetas
+      if (Math.abs(v) >= 1000) return Math.round(v).toString();
+      if (Math.abs(v - Math.round(v)) < 1e-6) return Math.round(v).toString();
+      return v.toFixed(1);
+    }
+
+    function renumber(){ currentStates.forEach((s,i)=> s.test = i+1); }
+
+    function renderTable(){
+      tableWrap.innerHTML = '';
+      const tbl = document.createElement('table');
+      const thead = document.createElement('thead');
+      thead.innerHTML = '<tr><th>Test</th><th>σ₃ (kPa)</th><th>σ₁ (kPa)</th><th></th></tr>';
+      tbl.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      currentStates.forEach((s,idx)=>{
+        const tr = document.createElement('tr');
+        const tdT = document.createElement('td'); tdT.textContent = s.test ?? (idx+1); tr.appendChild(tdT);
+        const td3 = document.createElement('td'); const in3 = document.createElement('input'); in3.type='number'; in3.step='0.1'; in3.value = s.sigma3; in3.addEventListener('change', e=>{ currentStates[idx].sigma3 = parseFloat(e.target.value); }); td3.appendChild(in3); tr.appendChild(td3);
+        const td1 = document.createElement('td'); const in1 = document.createElement('input'); in1.type='number'; in1.step='0.1'; in1.value = s.sigma1; in1.addEventListener('change', e=>{ currentStates[idx].sigma1 = parseFloat(e.target.value); }); td1.appendChild(in1); tr.appendChild(td1);
+        const tdA = document.createElement('td'); const del = document.createElement('button'); del.textContent='Eliminar'; del.className='secondary'; del.addEventListener('click', ()=>{ if(currentStates.length<=1){ alert('Debe existir al menos un ensayo.'); return;} currentStates.splice(idx,1); renumber(); renderTable(); drawCirclesAndEnvelope(currentStates); }); tdA.appendChild(del); tr.appendChild(tdA);
+        tbody.appendChild(tr);
+      });
+      tbl.appendChild(tbody);
+      tableWrap.appendChild(tbl);
+    }
+
+    function renderLegendTests(states){
+      const lt = document.getElementById('legendTests');
+      lt.innerHTML = '';
+      states.forEach((s, idx) => {
+        const wrapper = document.createElement('span');
+        const sw = document.createElement('span');
+        sw.className = 'sw';
+        sw.style.background = COLORS[idx % COLORS.length];
+        wrapper.appendChild(sw);
+        wrapper.appendChild(document.createTextNode(` Ensayo ${s.test ?? (idx+1)}`));
+        lt.appendChild(wrapper);
       });
     }
 
-    function setPhi(phi){
-      phi = Math.max(20, Math.min(48, phi));
-      phiRange.value = phi; phiVal.textContent = (+phi).toFixed(1);
-      chips.forEach(ch=> ch.classList.toggle('active', +ch.dataset.phi === Math.round(phi)) );
-      drawLine(phi); drawPoints(phi);
+    function addTestFromInputs(){
+      const s3 = parseFloat(inSig3.value);
+      const s1 = parseFloat(inSig1.value);
+      if(!isFinite(s3) || !isFinite(s1)){ alert('Ingresa valores numéricos para σ₃ y σ₁.'); return; }
+      if(s1 <= s3){ alert('Debe cumplirse σ₁ > σ₃.'); return; }
+      currentStates.push({ test: currentStates.length+1, sigma3: s3, sigma1: s1 });
+      renderTable();
+      drawCirclesAndEnvelope(currentStates);
+    }
+
+    function validateStates(arr){
+      for(let i=0;i<arr.length;i++){
+        const s = arr[i];
+        if(!(isFinite(s.sigma1) && isFinite(s.sigma3))) return `Valores no numéricos en fila ${i+1}.`;
+        if(s.sigma1 <= s.sigma3) return `En la fila ${i+1} debe cumplirse σ₁ > σ₃.`;
+      }
+      return null;
+    }
+
+    function drawCirclesAndEnvelope(states){
+      circlesG.innerHTML = ''; topPointsG.innerHTML = '';
+
+      // Centros y radios
+      const C = [], R = [], sig3s = [], sig1s = [];
+      let xmin = Infinity, xmax = -Infinity, maxTauCircle = 0;
+      states.forEach((s, idx) => {
+        const sig3 = s.sigma3, sig1 = s.sigma1;
+        const c0 = 0.5*(sig1 + sig3); const r0 = 0.5*(sig1 - sig3);
+        C.push(c0); R.push(r0); sig3s.push(sig3); sig1s.push(sig1);
+        // Semicírculo superior (theta 0..π)
+        const N = 180; let d = '';
+        for(let i=0;i<=N;i++){
+          const th = Math.PI * (i/N);
+          const sigma = c0 + r0*Math.cos(th);
+          const tau = r0*Math.sin(th); // >= 0
+          const x = xOf(sigma), y = yOf(tau);
+          d += (i===0?`M${x},${y}`:` L${x},${y}`);
+        }
+        const p = path(d, COLORS[idx % COLORS.length], 2); p.setAttribute('opacity','0.9'); circlesG.appendChild(p);
+        // Extremos en eje σ (sig3, sig1)
+        const e1 = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        e1.setAttribute('cx', xOf(sig3)); e1.setAttribute('cy', yOf(0)); e1.setAttribute('r', 3); e1.setAttribute('fill', '#e8ecf8'); circlesG.appendChild(e1);
+        const e2 = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        e2.setAttribute('cx', xOf(sig1)); e2.setAttribute('cy', yOf(0)); e2.setAttribute('r', 3); e2.setAttribute('fill', '#e8ecf8'); circlesG.appendChild(e2);
+        // Punto superior (C,R)
+        const pt = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        pt.setAttribute('cx', xOf(c0)); pt.setAttribute('cy', yOf(r0)); pt.setAttribute('r', 4); pt.setAttribute('fill', '#e8ecf8'); topPointsG.appendChild(pt);
+        const lbl = text(xOf(c0)+8, yOf(r0)-8, `C=${Math.round(c0)}, R=${Math.round(r0)}`, 'start', 'var(--ink)'); lbl.setAttribute('font-size','12'); topPointsG.appendChild(lbl);
+
+        xmin = Math.min(xmin, sig3 - 0.1*r0);
+        xmax = Math.max(xmax, sig1 + 0.1*r0);
+        maxTauCircle = Math.max(maxTauCircle, r0);
+      });
+
+      // Ajuste lineal con (σ=C, τ=R)
+      const {m: tanPhi, b: cCoh} = linearRegression(C, R);
+      const phiDeg = Math.atan(tanPhi) * 180/Math.PI;
+
+      // Dominio en σ: incluye datos, origen y corte con τ=0
+      const xr = (xmax - xmin);
+      const margen = (isFinite(xr) && xr > 0) ? 0.75 * xr : 100.0;
+      const xInt = (tanPhi !== 0) ? (-cCoh / tanPhi) : 0; // corte con τ=0
+      let sigMin = Math.min(0, xmin - margen, xInt - margen);
+      let sigMax = Math.max(0, xmax + margen, xInt + margen);
+      if (sigMax - sigMin < 1e-6) { sigMin -= 50; sigMax += 50; }
+
+      // Dominio en τ: desde 0 hasta máximo de círculos y envolvente (positiva)
+      const yEnvAtMin = cCoh + tanPhi*sigMin;
+      const yEnvAtMax = cCoh + tanPhi*sigMax;
+      const maxEnvPos = Math.max(0, yEnvAtMin, yEnvAtMax);
+      const maxTau = Math.max(maxTauCircle, maxEnvPos);
+      const padTau = (maxTau > 0) ? 0.1*maxTau : 10;
+
+      // Actualizar dominios globales y redibujar grilla/ejes
+      SIG_MIN = sigMin; SIG_MAX = sigMax; TAU_MAX = maxTau + padTau;
+      drawGridAndAxes();
+
+      // Actualiza leyenda de tests con la paleta
+      renderLegendTests(states);
+
+      // Dibujar de nuevo círculos con el dominio definitivo (para buen encuadre)
+      circlesG.innerHTML = ''; topPointsG.innerHTML = '';
+      states.forEach((s, idx) => {
+        const sig3 = s.sigma3, sig1 = s.sigma1;
+        const c0 = 0.5*(sig1 + sig3); const r0 = 0.5*(sig1 - sig3);
+        const N = 180; let d = '';
+        for(let i=0;i<=N;i++){
+          const th = Math.PI * (i/N);
+          const sigma = c0 + r0*Math.cos(th);
+          const tau = r0*Math.sin(th);
+          const x = xOf(sigma), y = yOf(tau);
+          d += (i===0?`M${x},${y}`:` L${x},${y}`);
+        }
+        const p = path(d, COLORS[idx % COLORS.length], 2); p.setAttribute('opacity','0.9'); circlesG.appendChild(p);
+        const e1 = document.createElementNS('http://www.w3.org/2000/svg','circle'); e1.setAttribute('cx', xOf(sig3)); e1.setAttribute('cy', yOf(0)); e1.setAttribute('r', 3); e1.setAttribute('fill', '#e8ecf8'); circlesG.appendChild(e1);
+        const e2 = document.createElementNS('http://www.w3.org/2000/svg','circle'); e2.setAttribute('cx', xOf(sig1)); e2.setAttribute('cy', yOf(0)); e2.setAttribute('r', 3); e2.setAttribute('fill', '#e8ecf8'); circlesG.appendChild(e2);
+        const pt = document.createElementNS('http://www.w3.org/2000/svg','circle'); pt.setAttribute('cx', xOf(c0)); pt.setAttribute('cy', yOf(r0)); pt.setAttribute('r', 4); pt.setAttribute('fill', '#e8ecf8'); topPointsG.appendChild(pt);
+      });
+
+      // Envolvente (solo donde τ >= 0)
+      let dEnv = '';
+      // Si la pendiente es positiva, τ>=0 para σ>=xInt
+      const startX = (tanPhi !== 0) ? Math.max(SIG_MIN, xInt) : SIG_MIN;
+      const endX = SIG_MAX;
+      const Nenv = 400;
+      for(let i=0;i<=Nenv;i++){
+        const sVal = startX + (i/Nenv)*(endX - startX);
+        const tVal = cCoh + tanPhi*sVal;
+        if (tVal < 0) continue; // por seguridad
+        const x = xOf(sVal), y = yOf(tVal);
+        dEnv += (i===0?`M${x},${y}`:` L${x},${y}`);
+      }
+      envPath.setAttribute('d', dEnv);
+
+      // Etiquetas y notas
+      const cTxt = `${cCoh.toFixed(2)} kPa`;
+      const phiTxt = `${phiDeg.toFixed(2)}°`;
+      const tanTxt = tanPhi.toFixed(3);
+      eqEl.textContent = `τ = ${cCoh.toFixed(2)} + σ' · ${tanTxt}   (φ = ${phiTxt})`;
+      cVal.textContent = cTxt; phiVal.textContent = phiTxt; tanVal.textContent = tanTxt;
+      noteC.textContent = `• c = ${cTxt}`;
+      notePhi.textContent = `• φ = ${phiTxt}`;
+      noteTan.textContent = `• tanφ = ${tanTxt}`;
     }
 
     // Exportar a PNG (1200×630)
     function downloadPNG(){
-      const svgEl = document.getElementById('plot');
       const serializer = new XMLSerializer();
-      const src = serializer.serializeToString(svgEl);
+      const src = serializer.serializeToString(svg);
       const svg64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
-
       const img = new Image();
       img.onload = () => {
-        const W = 1200, H = 630;
+        const Wc = 1200, Hc = 630;
         const canvas = document.createElement('canvas');
-        canvas.width = W; canvas.height = H; const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#0b1020'; ctx.fillRect(0,0,W,H);
-        const scale = Math.min(W/900, H/560) * 0.95;
-        const dw = 900*scale, dh = 560*scale; const dx = (W-dw)/2, dy = (H-dh)/2;
+        canvas.width = Wc; canvas.height = Hc; const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#0b1020'; ctx.fillRect(0,0,Wc,Hc);
+        const scale = Math.min(Wc/900, Hc/560) * 0.95;
+        const dw = 900*scale, dh = 560*scale; const dx = (Wc-dw)/2, dy = (Hc-dh)/2;
         ctx.drawImage(img, dx, dy, dw, dh);
-        const a = document.createElement('a'); a.download = `mohr-coulomb_phi${phiRange.value.replace('.', '-')}.png`; a.href = canvas.toDataURL('image/png'); a.click();
+        const a = document.createElement('a'); a.download = `mohr_circles_envolvente.png`; a.href = canvas.toDataURL('image/png'); a.click();
       };
       img.src = svg64;
     }
 
+    // Aplicar datos desde textarea
+    function applyData(){
+      try{
+        const arr = JSON.parse(dataInput.value);
+        if(!Array.isArray(arr)) throw new Error('El JSON debe ser un arreglo.');
+        arr.forEach((o,i)=>{
+          if(typeof o.sigma1 !== 'number' || typeof o.sigma3 !== 'number'){
+            throw new Error(`Elemento ${i} sin sigma1/sigma3 numéricos.`);
+          }
+          // normaliza campos
+          o.test = i+1;
+        });
+        const msg = validateStates(arr); if(msg){ alert(msg); return; }
+        currentStates = arr;
+        renumber();
+        renderTable();
+        drawCirclesAndEnvelope(currentStates);
+      }catch(err){
+        alert('Error al leer datos: ' + err.message);
+      }
+    }
+
     // Eventos
-    phiRange.addEventListener('input', e=> setPhi(parseFloat(e.target.value)) );
-    chips.forEach(ch => ch.addEventListener('click', ()=> setPhi(parseFloat(ch.dataset.phi)) ));
     btnDownload.addEventListener('click', downloadPNG);
-    btnReset.addEventListener('click', ()=> setPhi(35));
+    btnRecalc.addEventListener('click', ()=>{
+      const msg = validateStates(currentStates); 
+      if(msg){ alert(msg); return; }
+      drawCirclesAndEnvelope(currentStates);
+      dataInput.value = JSON.stringify(currentStates, null, 2);
+    });
+    btnImport.addEventListener('click', applyData);
+    btnAdd.addEventListener('click', addTestFromInputs);
+    btnReset.addEventListener('click', ()=>{
+      currentStates = JSON.parse(JSON.stringify(defaultStates));
+      dataInput.value = JSON.stringify(currentStates, null, 2);
+      renderTable();
+      drawCirclesAndEnvelope(currentStates);
+    });
 
     // Init
-    drawGrid(); drawRefs(); setPhi(35);
+    (function init(){
+      currentStates = JSON.parse(JSON.stringify(defaultStates));
+      dataInput.value = JSON.stringify(currentStates, null, 2);
+      renderTable();
+      drawCirclesAndEnvelope(currentStates);
+    })();
   </script>
 </body>
 </html>
