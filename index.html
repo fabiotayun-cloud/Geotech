@@ -132,7 +132,7 @@ footer{border-top:1px solid rgba(255,255,255,.08); padding:10px 14px; color:var(
 
         <div class="row">
           <button id="recalc">Recalcular</button>
-          <button id="download">Exportar PNG 1200×630</button>
+          <button id="download">Exportar PNG 1200×630 (fondo blanco)</button>
           <button id="reset" class="secondary">Reiniciar</button>
         </aside></div>
     </div>
@@ -437,18 +437,31 @@ footer{border-top:1px solid rgba(255,255,255,.08); padding:10px 14px; color:var(
     // Exportar a PNG (1200×630)
     function downloadPNG(){
       const serializer = new XMLSerializer();
-      const src = serializer.serializeToString(svg);
+      // Serializamos el SVG y forzamos una paleta "modo impresión" para buena legibilidad en fondo blanco
+      let src = serializer.serializeToString(svg)
+        .replace(/var\(--ink\)/g, '#111111')     // texto principal
+        .replace(/var\(--axis\)/g, '#374151')    // ejes y ticks (gris 700)
+        .replace(/var\(--grid\)/g, '#e5e7eb')    // grilla clara
+        .replace(/var\(--line\)/g, '#d97706')    // envolvente (ámbar 600)
+        .replace(/var\(--muted\)/g, '#6b7280');  // textos secundarios
+
       const svg64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
       const img = new Image();
       img.onload = () => {
         const Wc = 1200, Hc = 630;
         const canvas = document.createElement('canvas');
-        canvas.width = Wc; canvas.height = Hc; const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#0b1020'; ctx.fillRect(0,0,Wc,Hc);
+        canvas.width = Wc; canvas.height = Hc;
+        const ctx = canvas.getContext('2d');
+        // Fondo blanco
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0,0,Wc,Hc);
+        // Dibujamos el SVG centrado
         const scale = Math.min(Wc/900, Hc/560) * 0.95;
         const dw = 900*scale, dh = 560*scale; const dx = (Wc-dw)/2, dy = (Hc-dh)/2;
+        ctx.imageSmoothingEnabled = true;
         ctx.drawImage(img, dx, dy, dw, dh);
-        const a = document.createElement('a'); a.download = `mohr_circles_envolvente.png`; a.href = canvas.toDataURL('image/png'); a.click();
+        // Descargar
+        const a = document.createElement('a'); a.download = `mohr_circles_envolvente_light.png`; a.href = canvas.toDataURL('image/png'); a.click();
       };
       img.src = svg64;
     }
